@@ -65,7 +65,7 @@ export class SlotMachine {
                     fontSize: 80,
                     fill: 0xffffff,
                 }));
-                symbol.y = j * SlotMachine.SYMBOL_SIZE;
+                symbol.y = j * SlotMachine.SYMBOL_SIZE + 50;
                 symbol.x = SlotMachine.REEL_WIDTH / 2;
                 symbol.anchor.set(0.5);
                 reel.addChild(symbol);
@@ -86,7 +86,7 @@ export class SlotMachine {
 
     private centerElements() {
         // Center the reel container
-        this.reelContainer.x = (this.app.screen.width - this.reelContainer.width) / 2;
+        this.reelContainer.x = (this.app.screen.width - this.reelContainer.width) / 2 ;
         this.reelContainer.y = (this.app.screen.height - this.reelContainer.height) / 2;
 
         // Adjust UI elements
