@@ -4,7 +4,7 @@ export interface SpinResult {
     winAmount: number;
 }
 
-export class MockSlotApi {
+export class SlotApi {
     private static readonly SYMBOLS = ['🍎', '🍊', '🍋', '🍉', '🍇', '🍓', '🍒', '💎'];
     private static readonly REELS = 5;
     private static readonly VISIBLE_SYMBOLS = 4;

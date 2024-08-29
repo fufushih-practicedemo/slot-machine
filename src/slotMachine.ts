@@ -1,5 +1,5 @@
 import { Application, Container, Text, TextStyle, Ticker, Graphics } from 'pixi.js';
-import { MockSlotApi, SpinResult } from './mockApi';
+import { SlotApi, SpinResult } from './slotApi';
 
 export class SlotMachine {
     private app: Application;
@@ -55,7 +55,7 @@ export class SlotMachine {
         );
         this.reelContainer.addChild(frame);
     }
-    
+
     private createReels() {
         for (let i = 0; i < SlotMachine.REELS; i++) {
             const reel = new Container();
@@ -135,7 +135,7 @@ export class SlotMachine {
         this.balanceText.text = `Balance: ${this.balance}`;
 
         // Call the mock API
-        this.spinResult = await MockSlotApi.spin();
+        this.spinResult = await SlotApi.spin();
 
         const startTime = Date.now();
         const totalSpinTime = SlotMachine.REEL_SPIN_TIME + (SlotMachine.REELS - 1) * SlotMachine.REEL_STOP_DELAY;
@@ -252,7 +252,6 @@ export class SlotMachine {
                 fontSize: 24,
                 fill: 0xffff00,
                 stroke: 0x000000,
-                strokeThickness: 4,
             }));
             winText.x = this.reelContainer.x + this.reelContainer.width / 2;
             winText.y = this.reelContainer.y - 40;
