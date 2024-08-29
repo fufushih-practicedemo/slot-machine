@@ -1,5 +1,5 @@
 import { Application, Container, Text, TextStyle, Ticker, Graphics } from 'pixi.js';
-import { SlotApi, SpinResult } from './slotApi';
+import { SlotApi, SpinResult } from '../slotApi';
 
 export class SlotMachine {
     private app: Application;
