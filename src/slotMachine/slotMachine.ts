@@ -39,9 +39,9 @@ export class SlotMachine {
         this.app.stage.addChild(this.reelContainer);
         this.createReels();
         this.createFrame();
+        this.createWinLines();
         this.createUI();
         this.centerElements();
-        this.createWinLines();
     }
 
     private createFrame() {
@@ -53,6 +53,7 @@ export class SlotMachine {
             SlotMachine.REEL_WIDTH * SlotMachine.REELS + 20,
             SlotMachine.SYMBOL_SIZE * SlotMachine.VISIBLE_SYMBOLS + 20
         );
+        frame.zIndex = 1; // Set zIndex for the frame
         this.reelContainer.addChild(frame);
     }
 
@@ -207,15 +208,20 @@ export class SlotMachine {
     }
 
     private createWinLines() {
+        const linesContainer = new Container();
+        linesContainer.zIndex = 2; // Set zIndex for the win lines container
+
         for (let i = 0; i < SlotMachine.VISIBLE_SYMBOLS; i++) {
             const line = new Graphics();
             line.lineStyle(5, 0xFF0000, 1);
             line.moveTo(0, (i + 0.5) * SlotMachine.SYMBOL_SIZE);
             line.lineTo(SlotMachine.REEL_WIDTH * SlotMachine.REELS, (i + 0.5) * SlotMachine.SYMBOL_SIZE);
             line.visible = false;
-            this.reelContainer.addChild(line);
+            linesContainer.addChild(line);
             this.winLines.push(line);
         }
+
+        this.reelContainer.addChild(linesContainer);
     }
 
     private handleSpinResult() {
