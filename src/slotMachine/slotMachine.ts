@@ -15,6 +15,7 @@ export class SlotMachine {
     private spinning: boolean = false;
     private spinResult: SpinResult | null = null;
     private winLines: Graphics[];
+    private winningSymbols: Container[][] = [];
 
     private static readonly REEL_WIDTH = 160;
     private static readonly SYMBOL_SIZE = 120;
@@ -37,6 +38,7 @@ export class SlotMachine {
         this.reels = [];
         this.balance = 1000;
         this.winLines = [];
+        this.winningSymbols = Array(SlotMachine.REELS).fill(null).map(() => []);
     }
 
     async init() {
@@ -73,15 +75,19 @@ export class SlotMachine {
             this.reels.push(reel);
 
             for (let j = 0; j < SlotMachine.TOTAL_SYMBOLS; j++) {
+                const symbolContainer = new Container();
                 const symbol = new Text(this.getRandomSymbol(), new TextStyle({
                     fontFamily: 'Arial',
                     fontSize: 80,
                     fill: 0xffffff,
                 }));
-                symbol.y = j * SlotMachine.SYMBOL_SIZE + 50;
-                symbol.x = SlotMachine.REEL_WIDTH / 2;
                 symbol.anchor.set(0.5);
-                reel.addChild(symbol);
+                symbolContainer.addChild(symbol);
+                
+                symbolContainer.y = j * SlotMachine.SYMBOL_SIZE + 50;
+                symbolContainer.x = SlotMachine.REEL_WIDTH / 2;
+
+                reel.addChild(symbolContainer);
             }
         }
 
@@ -203,13 +209,14 @@ export class SlotMachine {
         
         for (let i = 0; i < SlotMachine.TOTAL_SYMBOLS; i++) {
             const symbolIndex = (i + offset) % SlotMachine.TOTAL_SYMBOLS;
-            const symbol = reel.children[i] as Text;
+            const symbolContainer = reel.children[i] as Container;
+            const symbol = symbolContainer.children[0] as Text;
             if (symbolIndex < SlotMachine.VISIBLE_SYMBOLS) {
                 symbol.text = finalSymbols[symbolIndex];
             } else {
                 symbol.text = this.getRandomSymbol();
             }
-            symbol.y = i * SlotMachine.SYMBOL_SIZE + 50;
+            symbolContainer.y = i * SlotMachine.SYMBOL_SIZE + 50;
         }
         
         reel.y = -offset * SlotMachine.SYMBOL_SIZE;
@@ -238,14 +245,35 @@ export class SlotMachine {
     }
 
     private showWinLines(board: string[][]) {
-        this.winLines.forEach(line => line.visible = false);
+        this.clearWinningSymbols();
 
         for (let row = 0; row < SlotMachine.VISIBLE_SYMBOLS; row++) {
             const symbols = board.map(reel => reel[row]);
             const uniqueSymbols = new Set(symbols);
             if (uniqueSymbols.size === 1) {
-                this.winLines[row].visible = true;
+                this.highlightWinningSymbols(row);
             }
+        }
+    }
+    private clearWinningSymbols() {
+        this.winningSymbols.forEach(reel => {
+            reel.forEach(symbol => {
+                if (symbol.parent) {
+                    symbol.parent.removeChild(symbol);
+                }
+            });
+        });
+        this.winningSymbols = Array(SlotMachine.REELS).fill(null).map(() => []);
+    }
+
+    private highlightWinningSymbols(row: number) {
+        for (let i = 0; i < SlotMachine.REELS; i++) {
+            const symbolContainer = this.reels[i].children[row] as Container;
+            const highlight = new Graphics();
+            highlight.lineStyle(5, 0xFFD700, 1);
+            highlight.drawRect(-SlotMachine.SYMBOL_SIZE / 2, -SlotMachine.SYMBOL_SIZE / 2, SlotMachine.SYMBOL_SIZE, SlotMachine.SYMBOL_SIZE);
+            symbolContainer.addChild(highlight);
+            this.winningSymbols[i].push(highlight);
         }
     }
 
@@ -262,7 +290,6 @@ export class SlotMachine {
                 fontSize: 24,
                 fill: 0xffff00,
                 stroke: 0x000000,
-                strokeThickness: 4
             }));
             winText.x = (SlotMachine.REEL_WIDTH * SlotMachine.REELS) / 2;
             winText.y = -40;
