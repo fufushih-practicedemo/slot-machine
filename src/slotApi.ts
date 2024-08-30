@@ -8,7 +8,7 @@ export class SlotApi {
     private static readonly SYMBOLS = ['🍎', '🍊', '🍋', '🍉', '🍇', '🍓', '🍒', '💎'];
     private static readonly REELS = 5;
     private static readonly VISIBLE_SYMBOLS = 4;
-    private static readonly WIN_PROBABILITY = 1; // 30% chance of winning
+    private static readonly WIN_PROBABILITY = 0.3; // 30% chance of winning
 
     static spin(): Promise<SpinResult> {
         return new Promise((resolve) => {

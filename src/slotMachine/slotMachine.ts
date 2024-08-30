@@ -1,4 +1,6 @@
-import { Application, Container, Text, TextStyle, Ticker, Graphics } from 'pixi.js';
+import { Application, Container, Graphics } from 'pixi.js';
+import { Reel } from './reel';
+import { UI } from './ui';
 import { SlotApi, SpinResult } from '../slotApi';
 
 export class SlotMachine {
@@ -7,26 +9,21 @@ export class SlotMachine {
     private reelContainer: Container;
     private frameContainer: Container;
     private winLinesContainer: Container;
-    private uiContainer: Container;
-    private reels: Container[];
+    private reels: Reel[];
+    private ui: UI;
     private balance: number;
-    private balanceText: Text;
-    private spinButton: Text;
     private spinning: boolean = false;
     private spinResult: SpinResult | null = null;
     private winLines: Graphics[];
     private winningSymbols: Container[][] = [];
 
-    private static readonly REEL_WIDTH = 160;
-    private static readonly SYMBOL_SIZE = 120;
-    private static readonly REELS = 5;
-    private static readonly VISIBLE_SYMBOLS = 4;
-    private static readonly TOTAL_SYMBOLS = 12;
-    private static readonly SYMBOLS = ['🍎', '🍊', '🍋', '🍉', '🍇', '🍓', '🍒', '💎'];
-    private static readonly SPIN_DURATION = 4000;
-    private static readonly MAX_SPEED = 50;
-    private static readonly REEL_SPIN_TIME = 2000;
-    private static readonly REEL_STOP_DELAY = 500;
+    static readonly REELS = 5;
+    static readonly VISIBLE_SYMBOLS = 4;
+    static readonly REEL_WIDTH = 160;
+    static readonly SYMBOL_SIZE = 120;
+    static readonly TOTAL_SYMBOLS = 12;
+    static readonly REEL_SPIN_TIME = 2000;
+    static readonly REEL_STOP_DELAY = 500;
 
     constructor() {
         this.app = new Application();
@@ -34,7 +31,6 @@ export class SlotMachine {
         this.reelContainer = new Container();
         this.frameContainer = new Container();
         this.winLinesContainer = new Container();
-        this.uiContainer = new Container();
         this.reels = [];
         this.balance = 1000;
         this.winLines = [];
@@ -44,10 +40,10 @@ export class SlotMachine {
     async init() {
         await this.app.init({ background: '#1099bb', resizeTo: window });
         document.body.appendChild(this.app.canvas);
-        
+
         this.app.stage.addChild(this.mainContainer);
-        this.mainContainer.addChild(this.reelContainer, this.frameContainer, this.winLinesContainer, this.uiContainer);
-        
+        this.mainContainer.addChild(this.reelContainer, this.frameContainer, this.winLinesContainer);
+
         this.createReels();
         this.createFrame();
         this.createWinLines();
@@ -55,40 +51,11 @@ export class SlotMachine {
         this.centerElements();
     }
 
-    private createFrame() {
-        const frame = new Graphics();
-        frame.lineStyle(5, 0xFFD700, 1);
-        frame.drawRect(
-            -10,
-            -10,
-            SlotMachine.REEL_WIDTH * SlotMachine.REELS + 20,
-            SlotMachine.SYMBOL_SIZE * SlotMachine.VISIBLE_SYMBOLS + 20
-        );
-        this.frameContainer.addChild(frame);
-    }
-
     private createReels() {
         for (let i = 0; i < SlotMachine.REELS; i++) {
-            const reel = new Container();
-            reel.x = i * SlotMachine.REEL_WIDTH;
-            this.reelContainer.addChild(reel);
+            const reel = new Reel(i * SlotMachine.REEL_WIDTH);
+            this.reelContainer.addChild(reel.container);
             this.reels.push(reel);
-
-            for (let j = 0; j < SlotMachine.TOTAL_SYMBOLS; j++) {
-                const symbolContainer = new Container();
-                const symbol = new Text(this.getRandomSymbol(), new TextStyle({
-                    fontFamily: 'Arial',
-                    fontSize: 80,
-                    fill: 0xffffff,
-                }));
-                symbol.anchor.set(0.5);
-                symbolContainer.addChild(symbol);
-                
-                symbolContainer.y = j * SlotMachine.SYMBOL_SIZE + 50;
-                symbolContainer.x = SlotMachine.REEL_WIDTH / 2;
-
-                reel.addChild(symbolContainer);
-            }
         }
 
         // Create mask
@@ -103,123 +70,16 @@ export class SlotMachine {
         this.reelContainer.addChild(mask);
     }
 
-    private centerElements() {
-        const padding = 20;
-        const totalWidth = SlotMachine.REEL_WIDTH * SlotMachine.REELS;
-        const totalHeight = SlotMachine.SYMBOL_SIZE * SlotMachine.VISIBLE_SYMBOLS;
-
-        this.mainContainer.x = (this.app.screen.width - totalWidth) / 2;
-        this.mainContainer.y = (this.app.screen.height - totalHeight) / 2 - padding;
-
-        this.balanceText.x = 0;
-        this.balanceText.y = totalHeight + padding;
-
-        this.spinButton.x = totalWidth - this.spinButton.width;
-        this.spinButton.y = totalHeight + padding;
-    }
-
-    private createUI() {
-        this.balanceText = new Text(`Balance: ${this.balance}`, new TextStyle({
-            fontFamily: 'Arial',
-            fontSize: 24,
-            fill: 0xffffff,
-        }));
-        this.uiContainer.addChild(this.balanceText);
-
-        this.spinButton = new Text('SPIN', new TextStyle({
-            fontFamily: 'Arial',
-            fontSize: 24,
-            fill: 0xffffff,
-        }));
-        this.spinButton.eventMode = 'static';
-        this.spinButton.cursor = 'pointer';
-        this.spinButton.on('pointerdown', () => this.spin());
-        this.uiContainer.addChild(this.spinButton);
-    }
-
-
-    private getRandomSymbol(): string {
-        return SlotMachine.SYMBOLS[Math.floor(Math.random() * SlotMachine.SYMBOLS.length)];
-    }
-
-    private async spin() {
-        if (this.spinning || this.balance < 10) return;
-
-        this.spinning = true;
-        this.balance -= 10;
-        this.balanceText.text = `Balance: ${this.balance}`;
-
-        // Call the mock API
-        this.spinResult = await SlotApi.spin();
-
-        const startTime = Date.now();
-        const totalSpinTime = SlotMachine.REEL_SPIN_TIME + (SlotMachine.REELS - 1) * SlotMachine.REEL_STOP_DELAY;
-
-        const ticker = new Ticker();
-        ticker.add(() => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / totalSpinTime, 1);
-
-            this.reels.forEach((reel, i) => {
-                const reelStartTime = i * SlotMachine.REEL_STOP_DELAY;
-                const reelElapsed = Math.max(0, elapsed - reelStartTime);
-                const reelProgress = Math.min(reelElapsed / SlotMachine.REEL_SPIN_TIME, 1);
-
-                if (reelProgress < 1) {
-                    const distance = this.calculateReelDistance(reelProgress);
-                    reel.y = distance % (SlotMachine.TOTAL_SYMBOLS * SlotMachine.SYMBOL_SIZE);
-                    this.wrapReelSymbols(reel);
-                } else if (reelProgress === 1) {
-                    this.setReelToFinalPosition(reel, i);
-                }
-            });
-
-            if (progress === 1) {
-                ticker.destroy();
-                this.spinning = false;
-                this.handleSpinResult();
-            }
-        });
-        ticker.start();
-    }
-
-    private calculateReelDistance(progress: number): number {
-        if (progress < 0.5) {
-            return SlotMachine.MAX_SPEED * progress * SlotMachine.REEL_SPIN_TIME;
-        } else {
-            const decelerationProgress = (progress - 0.5) / 0.5;
-            return SlotMachine.MAX_SPEED * SlotMachine.REEL_SPIN_TIME * 0.5 * (2 - decelerationProgress);
-        }
-    }
-
-    private wrapReelSymbols(reel: Container) {
-        reel.children.forEach((symbol) => {
-            if (symbol instanceof Container) return; // Skip decorations
-            if (symbol.y >= SlotMachine.TOTAL_SYMBOLS * SlotMachine.SYMBOL_SIZE) {
-                symbol.y -= SlotMachine.TOTAL_SYMBOLS * SlotMachine.SYMBOL_SIZE;
-            }
-        });
-    }
-
-    private setReelToFinalPosition(reel: Container, reelIndex: number) {
-        if (!this.spinResult) return;
-
-        const finalSymbols = this.spinResult.board[reelIndex];
-        let offset = Math.floor(Math.random() * (SlotMachine.TOTAL_SYMBOLS - SlotMachine.VISIBLE_SYMBOLS));
-        
-        for (let i = 0; i < SlotMachine.TOTAL_SYMBOLS; i++) {
-            const symbolIndex = (i + offset) % SlotMachine.TOTAL_SYMBOLS;
-            const symbolContainer = reel.children[i] as Container;
-            const symbol = symbolContainer.children[0] as Text;
-            if (symbolIndex < SlotMachine.VISIBLE_SYMBOLS) {
-                symbol.text = finalSymbols[symbolIndex];
-            } else {
-                symbol.text = this.getRandomSymbol();
-            }
-            symbolContainer.y = i * SlotMachine.SYMBOL_SIZE + 50;
-        }
-        
-        reel.y = -offset * SlotMachine.SYMBOL_SIZE;
+    private createFrame() {
+        const frame = new Graphics();
+        frame.lineStyle(5, 0xFFD700, 1);
+        frame.drawRect(
+            -10,
+            -10,
+            SlotMachine.REEL_WIDTH * SlotMachine.REELS + 20,
+            SlotMachine.SYMBOL_SIZE * SlotMachine.VISIBLE_SYMBOLS + 20
+        );
+        this.frameContainer.addChild(frame);
     }
 
     private createWinLines() {
@@ -234,13 +94,54 @@ export class SlotMachine {
         }
     }
 
+    private createUI() {
+        this.ui = new UI(this.balance, () => this.spin());
+        this.mainContainer.addChild(this.ui.container);
+    }
+
+    private centerElements() {
+        const padding = 20;
+        const totalWidth = SlotMachine.REEL_WIDTH * SlotMachine.REELS;
+        const totalHeight = SlotMachine.SYMBOL_SIZE * SlotMachine.VISIBLE_SYMBOLS;
+
+        this.mainContainer.x = (this.app.screen.width - totalWidth) / 2;
+        this.mainContainer.y = (this.app.screen.height - totalHeight) / 2 - padding;
+
+        this.ui.positionElements(totalWidth, totalHeight);
+    }
+
+    private async spin() {
+        if (this.spinning || this.balance < 10) return;
+
+        this.spinning = true;
+        this.balance -= 10;
+        this.ui.updateBalance(this.balance);
+
+        this.spinResult = await SlotApi.spin();
+
+        const totalSpinTime = SlotMachine.REEL_SPIN_TIME + (SlotMachine.REELS - 1) * SlotMachine.REEL_STOP_DELAY;
+        const startTime = Date.now();
+
+        const spinPromises = this.reels.map((reel, index) => 
+            new Promise<void>(resolve => {
+                setTimeout(() => {
+                    reel.spin(this.spinResult!.board[index]).then(resolve);
+                }, index * SlotMachine.REEL_STOP_DELAY);
+            })
+        );
+
+        await Promise.all(spinPromises);
+
+        this.spinning = false;
+        this.handleSpinResult();
+    }
 
     private handleSpinResult() {
         if (!this.spinResult) return;
 
         this.balance += this.spinResult.winAmount;
-        this.balanceText.text = `Balance: ${this.balance}`;
-        this.updateWinningDisplay(this.spinResult.winAmount);
+        this.ui.updateBalance(this.balance);
+        this.ui.updateWinningDisplay(this.spinResult.winAmount);
         this.showWinLines(this.spinResult.board);
     }
 
@@ -255,6 +156,7 @@ export class SlotMachine {
             }
         }
     }
+
     private clearWinningSymbols() {
         this.winningSymbols.forEach(reel => {
             reel.forEach(symbol => {
@@ -268,34 +170,12 @@ export class SlotMachine {
 
     private highlightWinningSymbols(row: number) {
         for (let i = 0; i < SlotMachine.REELS; i++) {
-            const symbolContainer = this.reels[i].children[row] as Container;
+            const symbolContainer = this.reels[i].container.children[row] as Container;
             const highlight = new Graphics();
             highlight.lineStyle(5, 0xFFD700, 1);
             highlight.drawRect(-SlotMachine.SYMBOL_SIZE / 2, -SlotMachine.SYMBOL_SIZE / 2, SlotMachine.SYMBOL_SIZE, SlotMachine.SYMBOL_SIZE);
             symbolContainer.addChild(highlight);
             this.winningSymbols[i].push(highlight);
-        }
-    }
-
-    private updateWinningDisplay(winnings: number) {
-        this.uiContainer.children.forEach(child => {
-            if (child instanceof Text && child.name === 'winningText') {
-                this.uiContainer.removeChild(child);
-            }
-        });
-
-        if (winnings > 0) {
-            const winText = new Text(`You won: ${winnings}`, new TextStyle({
-                fontFamily: 'Arial',
-                fontSize: 24,
-                fill: 0xffff00,
-                stroke: 0x000000,
-            }));
-            winText.x = (SlotMachine.REEL_WIDTH * SlotMachine.REELS) / 2;
-            winText.y = -40;
-            winText.anchor.set(0.5);
-            winText.name = 'winningText';
-            this.uiContainer.addChild(winText);
         }
     }
 }
