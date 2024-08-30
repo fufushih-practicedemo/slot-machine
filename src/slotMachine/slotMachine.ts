@@ -3,7 +3,11 @@ import { SlotApi, SpinResult } from '../slotApi';
 
 export class SlotMachine {
     private app: Application;
+    private mainContainer: Container;
     private reelContainer: Container;
+    private frameContainer: Container;
+    private winLinesContainer: Container;
+    private uiContainer: Container;
     private reels: Container[];
     private balance: number;
     private balanceText: Text;
@@ -22,12 +26,14 @@ export class SlotMachine {
     private static readonly MAX_SPEED = 50;
     private static readonly REEL_SPIN_TIME = 2000;
     private static readonly REEL_STOP_DELAY = 500;
-    private static readonly SPIN_TIME_BEFORE_STOP = 2000; // Time to spin before stopping starts
-    private static readonly REEL_STOP_INTERVAL = 200; // Time between each reel stopping
 
     constructor() {
         this.app = new Application();
+        this.mainContainer = new Container();
         this.reelContainer = new Container();
+        this.frameContainer = new Container();
+        this.winLinesContainer = new Container();
+        this.uiContainer = new Container();
         this.reels = [];
         this.balance = 1000;
         this.winLines = [];
@@ -36,7 +42,10 @@ export class SlotMachine {
     async init() {
         await this.app.init({ background: '#1099bb', resizeTo: window });
         document.body.appendChild(this.app.canvas);
-        this.app.stage.addChild(this.reelContainer);
+        
+        this.app.stage.addChild(this.mainContainer);
+        this.mainContainer.addChild(this.reelContainer, this.frameContainer, this.winLinesContainer, this.uiContainer);
+        
         this.createReels();
         this.createFrame();
         this.createWinLines();
@@ -53,8 +62,7 @@ export class SlotMachine {
             SlotMachine.REEL_WIDTH * SlotMachine.REELS + 20,
             SlotMachine.SYMBOL_SIZE * SlotMachine.VISIBLE_SYMBOLS + 20
         );
-        frame.zIndex = 1; // Set zIndex for the frame
-        this.reelContainer.addChild(frame);
+        this.frameContainer.addChild(frame);
     }
 
     private createReels() {
@@ -94,14 +102,14 @@ export class SlotMachine {
         const totalWidth = SlotMachine.REEL_WIDTH * SlotMachine.REELS;
         const totalHeight = SlotMachine.SYMBOL_SIZE * SlotMachine.VISIBLE_SYMBOLS;
 
-        this.reelContainer.x = (this.app.screen.width - totalWidth) / 2;
-        this.reelContainer.y = (this.app.screen.height - totalHeight) / 2 - padding;
+        this.mainContainer.x = (this.app.screen.width - totalWidth) / 2;
+        this.mainContainer.y = (this.app.screen.height - totalHeight) / 2 - padding;
 
-        this.balanceText.x = this.reelContainer.x;
-        this.balanceText.y = this.reelContainer.y + totalHeight + padding;
+        this.balanceText.x = 0;
+        this.balanceText.y = totalHeight + padding;
 
-        this.spinButton.x = this.reelContainer.x + totalWidth - this.spinButton.width;
-        this.spinButton.y = this.reelContainer.y + totalHeight + padding;
+        this.spinButton.x = totalWidth - this.spinButton.width;
+        this.spinButton.y = totalHeight + padding;
     }
 
     private createUI() {
@@ -110,7 +118,7 @@ export class SlotMachine {
             fontSize: 24,
             fill: 0xffffff,
         }));
-        this.app.stage.addChild(this.balanceText);
+        this.uiContainer.addChild(this.balanceText);
 
         this.spinButton = new Text('SPIN', new TextStyle({
             fontFamily: 'Arial',
@@ -120,7 +128,7 @@ export class SlotMachine {
         this.spinButton.eventMode = 'static';
         this.spinButton.cursor = 'pointer';
         this.spinButton.on('pointerdown', () => this.spin());
-        this.app.stage.addChild(this.spinButton);
+        this.uiContainer.addChild(this.spinButton);
     }
 
 
@@ -208,21 +216,17 @@ export class SlotMachine {
     }
 
     private createWinLines() {
-        const linesContainer = new Container();
-        linesContainer.zIndex = 2; // Set zIndex for the win lines container
-
         for (let i = 0; i < SlotMachine.VISIBLE_SYMBOLS; i++) {
             const line = new Graphics();
             line.lineStyle(5, 0xFF0000, 1);
             line.moveTo(0, (i + 0.5) * SlotMachine.SYMBOL_SIZE);
             line.lineTo(SlotMachine.REEL_WIDTH * SlotMachine.REELS, (i + 0.5) * SlotMachine.SYMBOL_SIZE);
             line.visible = false;
-            linesContainer.addChild(line);
+            this.winLinesContainer.addChild(line);
             this.winLines.push(line);
         }
-
-        this.reelContainer.addChild(linesContainer);
     }
+
 
     private handleSpinResult() {
         if (!this.spinResult) return;
@@ -246,9 +250,9 @@ export class SlotMachine {
     }
 
     private updateWinningDisplay(winnings: number) {
-        this.app.stage.children.forEach(child => {
+        this.uiContainer.children.forEach(child => {
             if (child instanceof Text && child.name === 'winningText') {
-                this.app.stage.removeChild(child);
+                this.uiContainer.removeChild(child);
             }
         });
 
@@ -258,14 +262,13 @@ export class SlotMachine {
                 fontSize: 24,
                 fill: 0xffff00,
                 stroke: 0x000000,
+                strokeThickness: 4
             }));
-            winText.x = this.reelContainer.x + this.reelContainer.width / 2;
-            winText.y = this.reelContainer.y - 40;
+            winText.x = (SlotMachine.REEL_WIDTH * SlotMachine.REELS) / 2;
+            winText.y = -40;
             winText.anchor.set(0.5);
             winText.name = 'winningText';
-            this.app.stage.addChild(winText);
+            this.uiContainer.addChild(winText);
         }
     }
-
-    
 }
